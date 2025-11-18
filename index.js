@@ -6,15 +6,22 @@ async function start() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({
     auth: state,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: true          // fuerza QR visible
+    logger: pino({ level: 'silent' })
   });
 
   sock.ev.on('creds.update', saveCreds);
+
   sock.ev.on('connection.update', ({ qr, connection }) => {
-    if (qr) qrcode.generate(qr, { small: true });
+    if (qr) {
+      console.log('\n┌-----------------------QR-----------------------┐');
+      qrcode.generate(qr, { small: true });
+      console.log('└------------------------------------------------┘');
+    }
     if (connection === 'open') console.log('✅ Bot conectado');
   });
 }
 
-start();
+start().catch(err => {
+  console.error('Fallo al arrancar:', err);
+  process.exit(1);
+});
