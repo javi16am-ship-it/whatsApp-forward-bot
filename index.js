@@ -7,7 +7,7 @@ try {
 
   async function start() {
     console.log('>>> INICIANDO BOT...');
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+    const { state, saveCreds } = await useMultiFileAuthState('./tmp_auth');
     console.log('>>> Auth cargado');
     const sock = makeWASocket({
       auth: state,
