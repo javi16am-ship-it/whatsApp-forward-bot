@@ -1,40 +1,33 @@
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal');
+const pino = require('pino');
 const fs = require('fs');
-const logFile = fs.createWriteStream('/tmp/bot.log', { flags: 'a' });
-console.log = function (...args) {
-  logFile.write(new Date().toISOString() + ' ' + args.join(' ') + '\n');
-  process.stdout.write(args.join(' ') + '\n');
-};
-console.error = console.log;
 
-try {
-  console.log('>>> CARGANDO MODULOS...');
-  const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-  const qrcode = require('qrcode-terminal');
-  const pino = require('pino');
-  console.log('>>> MODULOS OK');
+const authFolder = './auth_info';
+if (!fs.existsSync(authFolder)) fs.mkdirSync(authFolder);
 
-  const authFolder = './auth_info';
-  if (!fs.existsSync(authFolder)) fs.mkdirSync(authFolder);
+console.log('>>> GENERANDO QR...');
 
-  console.log('>>> AUTH FOLDER OK');
-  useMultiFileAuthState(authFolder).then(({ state, saveCreds }) => {
-    console.log('>>> AUTH STATE OK');
-    const sock = makeWASocket({ auth: state, logger: pino({ level: 'silent' }) });
-    console.log('>>> SOCKET CREADO');
-
-    sock.ev.on('creds.update', saveCreds);
-    sock.ev.on('connection.update', ({ qr, connection }) => {
-      if (qr) {
-        console.log('>>> QR CODE:\n');
-        qrcode.generate(qr, { small: true });
-      }
-      if (connection === 'open') console.log('>>> BOT CONECTADO');
-    });
-  }).catch(err => {
-    console.error('>>> ERROR AUTH:', err.message || err);
-    console.error(err.stack);
+useMultiFileAuthState(authFolder).then(({ state }) => {
+  // creamos el socket pero SIN listeners que usen disco/network
+  const sock = makeWASocket({
+    auth: state,
+    logger: pino({ level: 'silent' }),
+    browser: ['Bot', 'Chrome', '112'],
+    markOnlineOnConnect: false,
+    keepAliveIntervalMs: 30000
   });
-} catch (e) {
-  console.error('>>> ERROR REQUIRE:', e.message || e);
-  console.error(e.stack);
-}
+
+  sock.ev.on('connection.update', ({ qr }) => {
+    if (qr) {
+      console.log('\n>>> QR CODE (escanea con WhatsApp):\n');
+      qrcode.generate(qr, { small: true });
+    }
+  });
+
+  // mantenemos vivo el proceso
+  setInterval(() => {}, 10000);
+}).catch(err => {
+  console.error('>>> ERROR:', err.message || err);
+  process.exit(1);
+});
